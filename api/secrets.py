@@ -26,6 +26,10 @@ class SecretsAPI(RestResource):  # pylint: disable=C0111
         resp = []
         for key in secrets_dict.keys():
             resp.append({"name": key, "secret": "******"})
+
+        for key in get_project_hidden_secrets(project.id):
+            resp.append({"name": key, "secret": "******", 'is_hidden': True})
+
         return resp, 200
 
     def post(self, project_id: int) -> Tuple[dict, int]:  # pylint: disable=C0111
