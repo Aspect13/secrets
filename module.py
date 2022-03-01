@@ -13,11 +13,16 @@
 #   limitations under the License.
 
 """ Module """
+from functools import partial
+
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 
 from .api.secrets import SecretsAPIBulkDelete
+
 from ..shared.utils.api_utils import add_resource_to_api
+from ..shared.utils.render import render_template_base
+from ..shared.connectors.auth import SessionProject
 
 
 class Module(module.ModuleModel):
@@ -29,13 +34,30 @@ class Module(module.ModuleModel):
 
     def init(self):
         """ Init module """
-        log.info("Initializing module Secrets")
+        log.info(f'Initializing module {self.descriptor.name}')
+
+        self.descriptor.init_blueprint()
+
+        self.init_api()
+        self.init_rpc()
+
+
+
+
+
+
+    def deinit(self):  # pylint: disable=R0201
+        """ De-init module """
+        log.info(f'De-initializing module {self.descriptor.name}')
+
+    def init_api(self):
         from .api.secrets import SecretsAPI
         from .api.secret import SecretApi
         add_resource_to_api(self.context.api, SecretsAPI, "/secrets/<int:project_id>")
         add_resource_to_api(self.context.api, SecretApi, "/secrets/<int:project_id>/<string:secret>")
         add_resource_to_api(self.context.api, SecretsAPIBulkDelete, "/secrets/bulk_delete/<int:project_id>")
 
+    def init_rpc(self):
         from .connectors.secrets import unsecret, get_project_hidden_secrets, set_project_secrets, \
             set_project_hidden_secrets, get_project_secrets, initialize_project_space, remove_project_space
 
@@ -47,7 +69,8 @@ class Module(module.ModuleModel):
         self.context.rpc_manager.register_function(set_project_hidden_secrets, name='project_set_hidden_secrets')
         self.context.rpc_manager.register_function(set_project_secrets, name='project_set_secrets')
 
-    def deinit(self):  # pylint: disable=R0201
-        """ De-init module """
-        log.info("De-initializing module Secrets")
-    #
+        self.context.rpc_manager.register_function(
+            # lambda: render_template_base('secrets:configuration.html'),
+            lambda: self.descriptor.render_template('configuration.html', project_id=SessionProject.get()),
+            name='configuration_secrets',
+        )
